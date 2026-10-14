@@ -74,7 +74,8 @@ const parametersField = {
   label: 'Parameters (JSON)',
   required: false,
   type: 'text' as const,
-  helpText: "Model-specific fields sent unchanged. See the model's page at https://docs.modelflare.dev/models/.",
+  helpText:
+    "Model-specific fields as a JSON object, sent unchanged. Each model's fields are on its page in the [Modelflare model docs](https://docs.modelflare.dev/models/).",
 }
 
 function jsonInput(z: ZObject, value: unknown, name: string): Record<string, unknown> {
@@ -176,7 +177,8 @@ const createVideo = {
         label: 'Request (JSON)',
         required: true,
         type: 'text' as const,
-        helpText: "The request body from the model's page at https://docs.modelflare.dev/models/video/. The model field is set for you.",
+        helpText:
+          "The request body as a JSON object, from the model's page in the [Modelflare video model docs](https://docs.modelflare.dev/models/video/). The model field is set for you.",
       },
     ],
     perform: async (z: ZObject, bundle: Bundle<{ model: string; request: string }>) => {
@@ -228,10 +230,11 @@ export = {
         required: true,
         default: 'global',
         choices: { global: 'Global (https://modelflare.dev/v1)', china: 'China (https://origin.modelflare.dev/v1)' },
+        helpText: 'Use China if your Zaps call Modelflare from mainland China. Both reach the same account, keys and models.',
       },
     ],
     test: async (z: ZObject, bundle: Bundle) => (await z.request({ url: `${baseUrl(bundle)}/models` })).data,
-    connectionLabel: 'Modelflare',
+    connectionLabel: 'Modelflare ({{bundle.authData.region}})',
   },
   beforeRequest: [addAuth],
   afterResponse: [explainErrors],
