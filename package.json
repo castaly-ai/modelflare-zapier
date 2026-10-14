@@ -12,7 +12,8 @@
   "scripts": {
     "build": "node build.mjs",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "validate": "node build.mjs && node validate.mjs"
+    "validate": "node build.mjs && node validate.mjs",
+    "_zapier-build": "node build.mjs"
   },
   "dependencies": {
     "zapier-platform-core": "19.2.0"
