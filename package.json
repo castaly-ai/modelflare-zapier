@@ -1,0 +1,26 @@
+{
+  "name": "modelflare-zapier",
+  "version": "0.1.0",
+  "description": "Modelflare on Zapier: chat, image and video generation with one Smart API Key for every model available to your account.",
+  "license": "MIT",
+  "author": "Havenbyte LLC",
+  "main": "dist/index.js",
+  "private": true,
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "build": "node build.mjs",
+    "typecheck": "tsc -p tsconfig.json --noEmit",
+    "validate": "node build.mjs && node validate.mjs"
+  },
+  "dependencies": {
+    "zapier-platform-core": "19.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "25.9.1",
+    "esbuild": "0.28.2",
+    "typescript": "6.0.3",
+    "zapier-platform-schema": "19.2.0"
+  }
+}
