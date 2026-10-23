@@ -6,6 +6,7 @@ import {
   classifyModels,
   describeError,
   errorFromResponse,
+  needsCatalog,
   resolveBaseUrl,
   signUpUrl,
   type CatalogEntry,
@@ -18,7 +19,11 @@ const VERSION = __MODELFLARE_PLUGIN_VERSION__
 const UTM_SOURCE = 'zapier'
 const ATTRIBUTION = attributionValue('modelflare-zapier', VERSION)
 
-const baseUrl = (bundle: Bundle) => resolveBaseUrl(bundle.authData.region || 'global')
+// Keep the region to the declared choice values. Zapier's auth-template
+// builder runs middleware with opaque placeholders; passing that placeholder
+// to resolveBaseUrl makes template generation fail before authData.apiKey can
+// become Authorization: Bearer {{bundle.authData.apiKey}}.
+const baseUrl = (bundle: Bundle) => resolveBaseUrl(bundle.authData.region === 'china' ? 'china' : 'global')
 
 const addAuth = (request: HttpRequestOptions & { url?: string }, _z: ZObject, bundle: Bundle) => {
   if (request.url?.startsWith(baseUrl(bundle))) {
@@ -40,15 +45,18 @@ const explainErrors = async (response: HttpResponse, z: ZObject) => {
 }
 
 async function modelsOfKind(z: ZObject, bundle: Bundle, kind: ModelKind) {
-  const list = await z.request<{ data?: ModelListEntry[] }>({ url: `${baseUrl(bundle)}/models` })
+  const list = await z.request<{ data?: ModelListEntry[] }>({ url: `${baseUrl(bundle)}/models?scope=authorized` })
+  const matches = (model: ReturnType<typeof classifyModels>[number]) =>
+    model.kind === kind && (kind !== 'text' || model.endpoints.includes('openai'))
   let catalog: CatalogEntry[] | null = null
   try {
+    if (!needsCatalog(list.data.data ?? [])) return classifyModels(list.data.data ?? [], null).filter(matches)
     const response = await z.request<{ data?: CatalogEntry[] }>({ url: CATALOG_URL, skipThrowForStatus: true })
     catalog = response.status === 200 && Array.isArray(response.data?.data) ? response.data.data : null
   } catch {
     catalog = null
   }
-  return classifyModels(list.data.data ?? [], catalog).filter((model) => model.kind === kind)
+  return classifyModels(list.data.data ?? [], catalog).filter(matches)
 }
 
 const modelTrigger = (kind: ModelKind) => ({
@@ -98,17 +106,35 @@ const chat = {
       modelField('text'),
       { key: 'prompt', label: 'Prompt', required: true, type: 'text' as const },
       { key: 'system', label: 'System Message', required: false, type: 'text' as const },
+      {
+        key: 'image_url',
+        label: 'Image URL',
+        required: false,
+        type: 'string' as const,
+        helpText: 'Optional image input for a vision-capable text model. Use an HTTPS or data URL.',
+      },
       parametersField,
     ],
-    perform: async (z: ZObject, bundle: Bundle<{ model: string; prompt: string; system?: string; parameters?: string }>) => {
-      const { model, prompt, system, parameters } = bundle.inputData
+    perform: async (
+      z: ZObject,
+      bundle: Bundle<{ model: string; prompt: string; system?: string; image_url?: string; parameters?: string }>,
+    ) => {
+      const { model, prompt, system, image_url: imageUrl, parameters } = bundle.inputData
+      const selected = (await modelsOfKind(z, bundle, 'text')).find((candidate) => candidate.id === model)
+      if (!selected) throw new z.errors.Error(`${model} is not a chat-completions model your key can call.`, 'model_not_found', 404)
+      const userContent = imageUrl
+        ? [
+            { type: 'text', text: prompt },
+            { type: 'image_url', image_url: { url: imageUrl } },
+          ]
+        : prompt
       const response = await z.request<{ choices?: Array<{ message?: { content?: string } }>; model?: string; usage?: unknown }>({
         url: `${baseUrl(bundle)}/chat/completions`,
         method: 'POST',
         body: {
           ...jsonInput(z, parameters, 'Parameters'),
-          model,
-          messages: [...(system ? [{ role: 'system', content: system }] : []), { role: 'user', content: prompt }],
+          model: selected.id,
+          messages: [...(system ? [{ role: 'system', content: system }] : []), { role: 'user', content: userContent }],
         },
       })
       return { content: response.data.choices?.[0]?.message?.content ?? '', model: response.data.model ?? model, usage: response.data.usage }
@@ -182,10 +208,12 @@ const createVideo = {
       },
     ],
     perform: async (z: ZObject, bundle: Bundle<{ model: string; request: string }>) => {
+      const selected = (await modelsOfKind(z, bundle, 'video')).find((candidate) => candidate.id === bundle.inputData.model)
+      if (!selected) throw new z.errors.Error(`${bundle.inputData.model} is not a video model your key can call.`, 'model_not_found', 404)
       const response = await z.request<{ id?: string; task_id?: string; status?: string }>({
         url: `${baseUrl(bundle)}/videos`,
         method: 'POST',
-        body: { ...jsonInput(z, bundle.inputData.request, 'Request'), model: bundle.inputData.model },
+        body: { ...jsonInput(z, bundle.inputData.request, 'Request'), model: selected.id },
       })
       return { id: response.data.id ?? response.data.task_id, status: response.data.status ?? 'queued' }
     },

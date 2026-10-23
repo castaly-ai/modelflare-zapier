@@ -8,7 +8,7 @@ Get a key / 获取 Key: https://modelflare.dev/sign-up?utm_source=zapier&utm_med
 
 | Type | Name | What it does |
 |---|---|---|
-| Action | Message a Model | Sends a prompt (and optional system message) to a text model |
+| Action | Message a Model | Sends a prompt, optional system message and optional image URL to a text/vision model |
 | Action | Generate Image | Generates an image; Zapier keeps a copy of the file because result URLs expire |
 | Action | Create Video | Starts a video task and returns its task ID |
 | Search | Find Video | Gets a video task; returns the video file once it is completed |

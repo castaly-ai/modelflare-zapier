@@ -1,6 +1,6 @@
 {
   "name": "modelflare-zapier",
-  "version": "0.1.2",
+  "version": "0.1.4",
   "description": "Modelflare on Zapier: chat, image and video generation with one Smart API Key for every model available to your account.",
   "license": "MIT",
   "author": "Havenbyte LLC",
